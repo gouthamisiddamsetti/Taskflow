@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">My Focus Queue</h1>
+        <p class="page-subtitle">Your personal assigned work units, active sprints, and deliverable submissions.</p>
+    </div>
+    <div>
+        <span class="badge badge-medium" style="font-size: 0.85rem; padding: 0.4rem 0.9rem;">
+            Assignee: {{ current_user.full_name }}
+        </span>
+    </div>
+</div>
+
+<!-- EMPLOYEE PERSONAL KPIS -->
+<div class="metrics-grid">
+    <div class="metric-card">
+        <span class="metric-title">Active Work</span>
+        <div class="metric-value">{{ active_count }}</div>
+        <div class="metric-meta">In progress or ready to start</div>
+    </div>
+    <div class="metric-card">
+        <span class="metric-title">Submitted for Review</span>
+        <div class="metric-value">{{ review_count }}</div>
+        <div class="metric-meta">Awaiting Lead sign-off</div>
+    </div>
+    <div class="metric-card">
+        <span class="metric-title">Active Blockers</span>
+        <div class="metric-value" style="color: {% if blocked_count > 0 %}var(--status-blocked){% else %}var(--text-dark){% endif %};">
+            {{ blocked_count }}
+        </div>
+        <div class="metric-meta">Escalated to management</div>
+    </div>
+    <div class="metric-card">
+        <span class="metric-title">Completed Units</span>
+        <div class="metric-value" style="color: var(--status-done);">{{ done_count }}</div>
+        <div class="metric-meta">Approved deliverables</div>
+    </div>
+</div>
+
+<!-- MY TASKS LIST -->
+<div class="card-panel">
+    <div class="panel-header">
+        <h2 class="panel-title">Assigned Tasks ({{ my_tasks|length }})</h2>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">Organized by priority and urgency</span>
+    </div>
+
+    {% if my_tasks %}
+    <div class="task-list">
+        {% for task in my_tasks %}
+        <div class="task-card {% if task.status == 'BLOCKED' %}is-blocked{% endif %}">
+            <div class="task-card-content">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                    <span class="task-code">{{ task.task_code }}</span>
+                    <span class="badge badge-{{ task.priority.lower() }}">{{ task.priority }}</span>
+                    <span class="badge badge-{{ task.status.lower() }}">{{ task.status.replace('_', ' ') }}</span>
+                    {% if task.category_name %}
+                    <span style="font-size: 0.75rem; color: {{ task.category_color or 'var(--sage-600)' }}; font-weight: 600;">
+                        &bull; {{ task.category_name }}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="task-title">{{ task.title }}</div>
+                <div class="task-desc">{{ task.description }}</div>
+
+                {% if task.blocker_reason %}
+                <div class="task-blocker-alert">
+                    <span>⚠️ <strong>Blocker Reason:</strong> {{ task.blocker_reason }}</span>
+                </div>
+                {% endif %}
+
+                <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 1rem;">
+                    <span>Project: <strong>{{ task.project_title }}</strong></span>
+                    <span>Reviewer: <strong>{{ task.lead_name or 'Team Lead' }}</strong></span>
+                    {% if task.due_date %}<span>Target Due: <strong>{{ task.due_date }}</strong></span>{% endif %}
+                </div>
+            </div>
+
+            <div class="task-card-meta">
+                <div class="task-actions" style="flex-direction: column; align-items: flex-end;">
+                    {% if task.status == 'TODO' %}
+                    <button class="btn btn-primary btn-sm" onclick="updateTaskStatus({{ task.id }}, 'IN_PROGRESS')">
+                        Start Work &rarr;
+                    </button>
+                    {% elif task.status == 'IN_PROGRESS' %}
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-secondary btn-sm" onclick="triggerBlockerModal({{ task.id }}, '{{ task.task_code }}')">
+                            Flag Blocker
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="submitReviewActionDirect({{ task.id }})">
+                            Submit for Review
+                        </button>
+                    </div>
+                    {% elif task.status == 'BLOCKED' %}
+                    <button class="btn btn-secondary btn-sm" onclick="updateTaskStatus({{ task.id }}, 'IN_PROGRESS')">
+                        Resume Work
+                    </button>
+                    {% elif task.status == 'UNDER_REVIEW' %}
+                    <span class="badge badge-under_review" style="padding: 0.4rem 0.8rem;">
+                        Awaiting Lead Sign-off
+                    </span>
+                    {% elif task.status == 'DONE' %}
+                    <span class="badge badge-done" style="padding: 0.4rem 0.8rem;">
+                        Deliverable Approved
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+        <p style="font-size: 1.1rem; font-weight: 600;">No active tasks assigned to your queue.</p>
+        <p style="font-size: 0.85rem; margin-top: 0.25rem;">Switch to Team Lead to delegate work or check with your manager.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function submitReviewActionDirect(taskId) {
+    const notes = prompt("Enter submission notes or Pull Request link for your Team Lead:");
+    if (notes === null) return; // User cancelled
+
+    try {
+        const response = await fetch(`/api/tasks/${taskId}/review`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'SUBMIT', notes: notes })
+        });
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to submit review');
+        }
+    } catch (err) {
+        console.error('Error submitting review:', err);
+    }
+}
+</script>
+{% endblock %}

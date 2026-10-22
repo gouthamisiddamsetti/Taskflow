@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Administrator Overview</h1>
+        <p class="page-subtitle">Organization-wide resource allocation, department health, and audit trail.</p>
+    </div>
+    <div>
+        <span class="badge badge-medium" style="font-size: 0.85rem; padding: 0.4rem 0.9rem;">
+            Scope: Full Organization
+        </span>
+    </div>
+</div>
+
+<!-- TOP KPI METRICS -->
+<div class="metrics-grid">
+    <div class="metric-card">
+        <span class="metric-title">Active Personnel</span>
+        <div class="metric-value">{{ total_users }}</div>
+        <div class="metric-meta">Across 3 Departments</div>
+    </div>
+    <div class="metric-card">
+        <span class="metric-title">Active Projects</span>
+        <div class="metric-value">{{ total_projects }}</div>
+        <div class="metric-meta">100% on schedule</div>
+    </div>
+    <div class="metric-card">
+        <span class="metric-title">Total Work Units</span>
+        <div class="metric-value">{{ total_tasks }}</div>
+        <div class="metric-meta">Enterprise backlog</div>
+    </div>
+    <div class="metric-card">
+        <span class="metric-title">Completion Rate</span>
+        <div class="metric-value">{{ completion_rate }}%</div>
+        <div class="metric-meta">Approved deliverables</div>
+    </div>
+</div>
+
+<!-- DEPARTMENT HEALTH & BREAKDOWN -->
+<div class="card-panel">
+    <div class="panel-header">
+        <h2 class="panel-title">Department Resource Allocation</h2>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">Real-time headcount & task load</span>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Department Name</th>
+                <th>Staff Count</th>
+                <th>Active Projects</th>
+                <th>Assigned Tasks</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dept in dept_stats %}
+            <tr>
+                <td><strong>{{ dept.code }}</strong></td>
+                <td>{{ dept.name }}</td>
+                <td>{{ dept.user_count }} members</td>
+                <td>{{ dept.project_count }} projects</td>
+                <td>{{ dept.task_count }} tasks</td>
+                <td><span class="badge badge-done">Active & Balanced</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- AUDIT LOG & RECENT ORGANIZATIONAL ACTIVITY -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+    <!-- System Activity Log -->
+    <div class="card-panel" style="margin-bottom: 0;">
+        <div class="panel-header">
+            <h2 class="panel-title">System Audit Log</h2>
+            <span class="badge badge-medium">Immutable</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.85rem; font-size: 0.85rem;">
+            {% for log in audit_logs %}
+            <div style="padding-bottom: 0.85rem; border-bottom: 1px solid var(--border-light);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.2rem;">
+                    <span style="font-weight: 600; color: var(--sage-700);">{{ log.task_code }} &bull; {{ log.action }}</span>
+                    <span style="color: var(--text-muted); font-size: 0.75rem;">{{ log.created_at[:16] }}</span>
+                </div>
+                <div style="color: var(--text-dark);">{{ log.details }}</div>
+                <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.2rem;">Actor: {{ log.user_name or 'System' }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Active Personnel Directory -->
+    <div class="card-panel" style="margin-bottom: 0;">
+        <div class="panel-header">
+            <h2 class="panel-title">Personnel Directory</h2>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Access controls</span>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Department</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users_list %}
+                <tr>
+                    <td>
+                        <div style="font-weight: 600;">{{ u.full_name }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ u.email }}</div>
+                    </td>
+                    <td><span class="badge badge-todo">{{ u.role_label }}</span></td>
+                    <td>{{ u.department_name or 'N/A' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

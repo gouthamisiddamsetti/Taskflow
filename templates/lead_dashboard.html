@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Team Lead & Sprint Management</h1>
+        <p class="page-subtitle">Delegate tasks, balance member workload, unblock impediments, and review deliverables.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <button class="btn btn-primary" onclick="openModal('createTaskModal')">
+            <span>+</span> Assign Work
+        </button>
+    </div>
+</div>
+
+<!-- ATTENTION BANNERS: BLOCKERS & REVIEWS -->
+{% if blockers or pending_reviews %}
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Active Blockers Requiring Intervention -->
+    {% if blockers %}
+    <div class="card-panel" style="border-left: 4px solid var(--status-blocked); margin-bottom: 0;">
+        <div class="panel-header" style="border-bottom: none; margin-bottom: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.25rem;">⚠️</span>
+                <h3 class="panel-title" style="color: var(--status-blocked);">Impediments Needing Intervention ({{ blockers|length }})</h3>
+            </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            {% for b in blockers %}
+            <div style="background: var(--status-blocked-bg); padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid #F5C6C6;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <strong>{{ b.task_code }}: {{ b.title }}</strong>
+                    <span style="font-size: 0.75rem; color: var(--status-blocked); font-weight: 600;">Assignee: {{ b.assignee_name }}</span>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-dark); margin-bottom: 0.65rem;">
+                    <strong>Blocker:</strong> {{ b.blocker_reason or 'No details provided' }}
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                    <button class="btn btn-secondary btn-sm" onclick="updateTaskStatus({{ b.id }}, 'IN_PROGRESS')">
+                        Mark Resolved & Resume
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Pending Review Approvals -->
+    {% if pending_reviews %}
+    <div class="card-panel" style="border-left: 4px solid var(--status-review); margin-bottom: 0;">
+        <div class="panel-header" style="border-bottom: none; margin-bottom: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.25rem;">📝</span>
+                <h3 class="panel-title" style="color: var(--status-review);">Sign-Off Queue ({{ pending_reviews|length }})</h3>
+            </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            {% for r in pending_reviews %}
+            <div style="background: var(--status-review-bg); padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--sage-200);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <strong>{{ r.task_code }}: {{ r.title }}</strong>
+                    <span style="font-size: 0.75rem; color: var(--sage-700); font-weight: 600;">By: {{ r.assignee_name }}</span>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.65rem;">
+                    Project: {{ r.project_title }} &bull; Est: {{ r.estimated_hours }}h
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                    <button class="btn btn-primary btn-sm" onclick="triggerReviewModal({{ r.id }}, '{{ r.task_code }}', true)">
+                        Inspect & Sign Off
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- TEAM WORKLOAD HEATMAP / CAPACITY -->
+<div class="card-panel">
+    <div class="panel-header">
+        <h2 class="panel-title">Team Workload & Capacity Tracking</h2>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">Prevent bottlenecks and burnout</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        {% for member in team_members %}
+        <div style="background: var(--bg-subtle); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.75rem;">
+                <div class="avatar" style="width: 32px; height: 32px; font-size: 0.75rem;">{{ member.avatar_initials }}</div>
+                <div>
+                    <div style="font-weight: 600; font-size: 0.85rem;">{{ member.full_name }}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">{{ member.title }}</div>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.35rem;">
+                <span>Active Workload:</span>
+                <strong>{{ member.assigned_count }} tasks</strong>
+            </div>
+            <div style="display: flex; gap: 0.4rem; font-size: 0.75rem;">
+                <span class="badge badge-in_progress" style="padding: 0.15rem 0.4rem;">{{ member.in_progress_count }} active</span>
+                {% if member.blocked_count > 0 %}
+                <span class="badge badge-blocked" style="padding: 0.15rem 0.4rem;">{{ member.blocked_count }} blocked</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- COMPREHENSIVE TEAM TASK BOARD -->
+<div class="card-panel">
+    <div class="panel-header">
+        <h2 class="panel-title">Team Work Units</h2>
+        <div style="display: flex; gap: 0.5rem;">
+            <span class="badge badge-medium">All Sprints</span>
+        </div>
+    </div>
+
+    <div class="task-list">
+        {% for task in tasks %}
+        <div class="task-card {% if task.status == 'BLOCKED' %}is-blocked{% endif %}">
+            <div class="task-card-content">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                    <span class="task-code">{{ task.task_code }}</span>
+                    <span class="badge badge-{{ task.priority.lower() }}">{{ task.priority }}</span>
+                    <span class="badge badge-{{ task.status.lower() }}">{{ task.status.replace('_', ' ') }}</span>
+                    {% if task.category_name %}
+                    <span style="font-size: 0.75rem; color: {{ task.category_color or 'var(--sage-600)' }}; font-weight: 600;">
+                        &bull; {{ task.category_name }}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="task-title">{{ task.title }}</div>
+                <div class="task-desc">{{ task.description }}</div>
+                {% if task.blocker_reason %}
+                <div class="task-blocker-alert">
+                    <span>⚠️ <strong>Blocker:</strong> {{ task.blocker_reason }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="task-card-meta">
+                <div style="text-align: right;">
+                    <div style="font-size: 0.85rem; font-weight: 600;">{{ task.assignee_name or 'Unassigned' }}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">{{ task.project_title }}</div>
+                </div>
+                <div class="task-actions">
+                    {% if task.status == 'UNDER_REVIEW' %}
+                    <button class="btn btn-primary btn-sm" onclick="triggerReviewModal({{ task.id }}, '{{ task.task_code }}', true)">
+                        Review
+                    </button>
+                    {% elif task.status == 'BLOCKED' %}
+                    <button class="btn btn-danger btn-sm" onclick="updateTaskStatus({{ task.id }}, 'IN_PROGRESS')">
+                        Unblock
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- TASK DELEGATION MODAL -->
+<div id="createTaskModal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title">Delegate New Work Unit</div>
+            <button class="modal-close" onclick="closeModal('createTaskModal')">&times;</button>
+        </div>
+        <form id="createTaskForm" onsubmit="submitCreateTask(event)">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="taskTitle">Task Title</label>
+                    <input type="text" id="taskTitle" name="title" class="form-control" required placeholder="e.g. Implement OAuth Single Sign-on">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="taskDesc">Description & Acceptance Criteria</label>
+                    <textarea id="taskDesc" name="description" class="form-control" rows="3" placeholder="Specify deliverables, edge cases, and documentation needed..."></textarea>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="projectSelect">Project</label>
+                        <select id="projectSelect" name="project_id" class="form-control" required>
+                            {% for p in projects %}
+                            <option value="{{ p.id }}">{{ p.title }} ({{ p.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="assigneeSelect">Assignee (Delegatee)</label>
+                        <select id="assigneeSelect" name="assignee_id" class="form-control" required>
+                            {% for a in assignees %}
+                            <option value="{{ a.id }}">{{ a.full_name }} ({{ a.title }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="prioritySelect">Priority</label>
+                        <select id="prioritySelect" name="priority" class="form-control">
+                            <option value="LOW">Low</option>
+                            <option value="MEDIUM" selected>Medium</option>
+                            <option value="HIGH">High</option>
+                            <option value="CRITICAL">Critical</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="categorySelect">Category</label>
+                        <select id="categorySelect" name="category_id" class="form-control">
+                            {% for c in categories %}
+                            <option value="{{ c.id }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="estHours">Estimated Hours</label>
+                        <input type="number" id="estHours" name="estimated_hours" class="form-control" step="0.5" placeholder="8.0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="dueDate">Target Due Date</label>
+                        <input type="date" id="dueDate" name="due_date" class="form-control">
+                    </div>
+                </div>
+            </div>
+            <div style="padding: 1rem 1.5rem; background: var(--bg-subtle); border-top: 1px solid var(--border-light); display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('createTaskModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Assign Work</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

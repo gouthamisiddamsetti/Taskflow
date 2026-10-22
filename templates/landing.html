@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block layout %}
+<div style="max-width: 1100px; margin: 0 auto; padding: 4rem 1.5rem;">
+    <!-- HERO SECTION -->
+    <div style="text-align: center; max-width: 800px; margin: 0 auto 4rem auto;">
+        <div style="display: inline-block; background: var(--sage-100); color: var(--sage-700); font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.35rem 1rem; border-radius: var(--radius-pill); margin-bottom: 1.5rem;">
+            Enterprise Workflow Architecture
+        </div>
+        <h1 style="font-size: 3rem; font-weight: 800; color: var(--sage-900); line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 1.25rem;">
+            Engineered for Organizations, Not Just Personal To-Dos.
+        </h1>
+        <p style="font-size: 1.2rem; color: var(--text-body); line-height: 1.6; margin-bottom: 2rem;">
+            Align departmental goals, streamline task delegation, resolve blockers in real time, and gain multi-tiered operational visibility from individual contributor to executive administration.
+        </p>
+        <div style="display: flex; justify-content: center; gap: 1rem;">
+            <a href="{{ url_for('login') }}" class="btn btn-primary" style="padding: 0.85rem 2rem; font-size: 1rem;">
+                Launch Live Demo &rarr;
+            </a>
+            <a href="{{ url_for('signup') }}" class="btn btn-secondary" style="padding: 0.85rem 1.75rem; font-size: 1rem;">
+                Create Free Account
+            </a>
+        </div>
+    </div>
+
+    <!-- 3 DISTINCT ROLE ARCHETYPES -->
+    <div style="margin-bottom: 4rem;">
+        <div style="text-align: center; margin-bottom: 2.5rem;">
+            <h2 style="font-size: 1.8rem; font-weight: 700; color: var(--sage-900);">Three Purpose-Built Dashboards</h2>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.3rem;">Every role gets the exact data and actions they need without interface clutter.</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+            <!-- Admin Card -->
+            <div class="card-panel" style="margin-bottom: 0; display: flex; flex-direction: column;">
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--sage-100); color: var(--sage-700); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1rem;">
+                    🏛️
+                </div>
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-dark); margin-bottom: 0.5rem;">Administrator</h3>
+                <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.25rem;">
+                    Global organizational health, department resource distribution, user provisioning, role assignments, and system audit trail inspection.
+                </p>
+                <div style="margin-top: auto;">
+                    <a href="{{ url_for('switch_demo_role', role_name='ADMIN') }}" class="btn btn-secondary btn-sm" style="width: 100%;">
+                        Preview Admin Dashboard &rarr;
+                    </a>
+                </div>
+            </div>
+
+            <!-- Team Lead Card -->
+            <div class="card-panel" style="margin-bottom: 0; display: flex; flex-direction: column; border: 2px solid var(--sage-400);">
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--sage-50); color: var(--sage-600); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1rem;">
+                    🎯
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-dark);">Team Lead / Manager</h3>
+                    <span class="badge badge-medium">Core Workflow</span>
+                </div>
+                <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.25rem;">
+                    Sprint capacity planning, balanced task delegation, review and sign-off queue, and proactive blocker resolution to maintain team velocity.
+                </p>
+                <div style="margin-top: auto;">
+                    <a href="{{ url_for('switch_demo_role', role_name='TEAM_LEAD') }}" class="btn btn-primary btn-sm" style="width: 100%;">
+                        Preview Lead Dashboard &rarr;
+                    </a>
+                </div>
+            </div>
+
+            <!-- Employee Card -->
+            <div class="card-panel" style="margin-bottom: 0; display: flex; flex-direction: column;">
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--sage-100); color: var(--sage-700); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1rem;">
+                    ⚡
+                </div>
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-dark); margin-bottom: 0.5rem;">Employee / IC</h3>
+                <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1.25rem;">
+                    High-focus "My Work" queue, one-click status transitions, instant blocker escalation with rationale, and seamless review submission.
+                </p>
+                <div style="margin-top: auto;">
+                    <a href="{{ url_for('switch_demo_role', role_name='EMPLOYEE') }}" class="btn btn-secondary btn-sm" style="width: 100%;">
+                        Preview Employee Dashboard &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WORKFLOW PIPELINE HIGHLIGHT -->
+    <div class="card-panel" style="background: linear-gradient(135deg, #FBF9F5 0%, #F5EFE6 100%); border: 1px solid var(--border-medium); padding: 2.5rem;">
+        <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--sage-900); margin-bottom: 1rem;">
+            Real-World Organizational Task Pipeline
+        </h3>
+        <p style="color: var(--text-body); font-size: 0.95rem; margin-bottom: 1.5rem; max-width: 750px;">
+            Unlike unstructured personal checklists, Taskflow implements an explicit state machine with accountability:
+        </p>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; font-weight: 600; font-size: 0.9rem;">
+            <span class="badge badge-todo" style="padding: 0.5rem 1rem;">1. Backlog / Todo</span>
+            <span>&rarr;</span>
+            <span class="badge badge-in_progress" style="padding: 0.5rem 1rem;">2. In Progress (IC Active)</span>
+            <span>&rarr;</span>
+            <span class="badge badge-blocked" style="padding: 0.5rem 1rem;">⚡ Blocker Flagged & Escalated</span>
+            <span>&rarr;</span>
+            <span class="badge badge-under_review" style="padding: 0.5rem 1rem;">3. Under Review (Lead Queue)</span>
+            <span>&rarr;</span>
+            <span class="badge badge-done" style="padding: 0.5rem 1rem;">4. Approved & Done</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

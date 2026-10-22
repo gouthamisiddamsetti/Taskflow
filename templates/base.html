@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Taskflow | Organizational Work Management{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header class="top-nav">
+        <a href="{{ url_for('index') }}" class="brand">
+            <div class="brand-icon">TF</div>
+            <span>Taskflow</span>
+        </a>
+
+        {% if current_user %}
+        <!-- One-Click Demo Role Switcher for instant evaluation -->
+        <div class="demo-role-switcher" title="Switch persona to evaluate different role dashboards">
+            <span class="label">Switch Role:</span>
+            <a href="{{ url_for('switch_demo_role', role_name='ADMIN') }}" 
+               class="role-pill {% if current_user.role_name == 'ADMIN' %}active{% endif %}">
+                Admin
+            </a>
+            <a href="{{ url_for('switch_demo_role', role_name='TEAM_LEAD') }}" 
+               class="role-pill {% if current_user.role_name == 'TEAM_LEAD' %}active{% endif %}">
+                Team Lead
+            </a>
+            <a href="{{ url_for('switch_demo_role', role_name='EMPLOYEE') }}" 
+               class="role-pill {% if current_user.role_name == 'EMPLOYEE' %}active{% endif %}">
+                Employee
+            </a>
+        </div>
+
+        <div class="user-profile-badge">
+            <div style="text-align: right;">
+                <div style="font-weight: 600; font-size: 0.85rem;">{{ current_user.full_name }}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ current_user.role_label }} &bull; {{ current_user.department_code or 'Org' }}</div>
+            </div>
+            <div class="avatar">{{ current_user.avatar_initials or 'U' }}</div>
+            <a href="{{ url_for('logout') }}" class="btn btn-secondary btn-sm" title="Sign Out">Sign Out</a>
+        </div>
+        {% else %}
+        <div>
+            <a href="{{ url_for('login') }}" class="btn btn-secondary btn-sm" style="margin-right: 0.5rem;">Sign In</a>
+            <a href="{{ url_for('signup') }}" class="btn btn-primary btn-sm">Get Started</a>
+        </div>
+        {% endif %}
+    </header>
+
+    {% block layout %}
+    <div class="app-container">
+        {% if current_user %}
+        <aside class="sidebar">
+            <div>
+                <div class="nav-section-title">Navigation</div>
+                <ul class="nav-links">
+                    <li class="{% if request.path == url_for('dashboard_router') or '/dashboard/' in request.path %}active{% endif %}">
+                        <a href="{{ url_for('dashboard_router') }}">
+                            <span>📊</span> Dashboard
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div>
+                <div class="nav-section-title">Workspaces</div>
+                <ul class="nav-links">
+                    <li><a href="#projects"><span>📁</span> Active Projects</a></li>
+                    <li><a href="#teams"><span>👥</span> Team Workload</a></li>
+                    <li><a href="#audit"><span>📜</span> Activity Logs</a></li>
+                </ul>
+            </div>
+
+            <div style="margin-top: auto; padding: 1rem; background: var(--bg-subtle); border-radius: var(--radius-md); font-size: 0.8rem;">
+                <div style="font-weight: 600; color: var(--sage-700);">Current Scope</div>
+                <div style="color: var(--text-muted); margin-top: 0.2rem;">{{ current_user.department_name or 'Global Organization' }}</div>
+            </div>
+        </aside>
+        {% endif %}
+
+        <main class="main-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% endblock %}
+
+    <!-- Blocker Report Modal -->
+    <div id="blockerModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">Report Task Blocker: <span id="blockerTaskCode"></span></div>
+                <button class="modal-close" onclick="closeModal('blockerModal')">&times;</button>
+            </div>
+            <form onsubmit="submitBlocker(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="blockerTaskId" name="task_id">
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                        Flagging a blocker immediately notifies your Team Lead and surfaces the impediment on the lead dashboard for prompt resolution.
+                    </p>
+                    <div class="form-group">
+                        <label class="form-label" for="blockerReason">Blocker Reason & Impediment:</label>
+                        <textarea id="blockerReason" class="form-control" rows="4" required placeholder="Describe what is preventing progress (e.g., missing API credentials, blocked on design specs, environment issue)..."></textarea>
+                    </div>
+                </div>
+                <div style="padding: 1rem 1.5rem; background: var(--bg-subtle); border-top: 1px solid var(--border-light); display: flex; justify-content: flex-end; gap: 0.75rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('blockerModal')">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Flag as Blocked</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Review / Signoff Modal -->
+    <div id="reviewModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">Task Sign-off & Review: <span id="reviewTaskCode"></span></div>
+                <button class="modal-close" onclick="closeModal('reviewModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="reviewTaskId" name="task_id">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Inspect deliverables against project acceptance criteria before approving or requesting revisions.
+                </p>
+                <div class="form-group">
+                    <label class="form-label" for="reviewNotes">Review Notes / Feedback:</label>
+                    <textarea id="reviewNotes" class="form-control" rows="3" placeholder="Add feedback, PR links, or verification notes..."></textarea>
+                </div>
+            </div>
+            <div style="padding: 1rem 1.5rem; background: var(--bg-subtle); border-top: 1px solid var(--border-light); display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('reviewModal')">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="submitReviewAction('REJECT')">Request Changes</button>
+                <button type="button" class="btn btn-primary" onclick="submitReviewAction('APPROVE')">Approve & Mark Done</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
