@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Activity Logs & Audit Trail</h1>
+        <p class="page-subtitle">Immutable chronological history of all organizational task events, assignments, and approvals.</p>
+    </div>
+    <div>
+        <span class="badge badge-medium" style="font-size: 0.85rem; padding: 0.4rem 0.9rem;">
+            Audit Engine: Active
+        </span>
+    </div>
+</div>
+
+<!-- FILTER TABS -->
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+    <a href="{{ url_for('activity_view', action='ALL') }}" 
+       class="btn btn-sm {% if current_filter == 'ALL' %}btn-primary{% else %}btn-secondary{% endif %}">
+        All Events ({{ logs|length }})
+    </a>
+    <a href="{{ url_for('activity_view', action='STATUS_CHANGE') }}" 
+       class="btn btn-sm {% if current_filter == 'STATUS_CHANGE' %}btn-primary{% else %}btn-secondary{% endif %}">
+        Status Changes
+    </a>
+    <a href="{{ url_for('activity_view', action='BLOCKED') }}" 
+       class="btn btn-sm {% if current_filter == 'BLOCKED' %}btn-primary{% else %}btn-secondary{% endif %}">
+        Blocker Alerts
+    </a>
+    <a href="{{ url_for('activity_view', action='APPROVED') }}" 
+       class="btn btn-sm {% if current_filter == 'APPROVED' %}btn-primary{% else %}btn-secondary{% endif %}">
+        Approved Deliverables
+    </a>
+    <a href="{{ url_for('activity_view', action='SUBMIT_REVIEW') }}" 
+       class="btn btn-sm {% if current_filter == 'SUBMIT_REVIEW' %}btn-primary{% else %}btn-secondary{% endif %}">
+        Review Submissions
+    </a>
+</div>
+
+<!-- AUDIT LOG TABLE -->
+<div class="card-panel">
+    <div class="panel-header">
+        <h2 class="panel-title">Audit Trail Records</h2>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">Sorted newest to oldest</span>
+    </div>
+
+    {% if logs %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 160px;">Timestamp</th>
+                <th>Task</th>
+                <th>Actor</th>
+                <th>Action</th>
+                <th>Event Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">
+                    {{ log.created_at[:16] }}
+                </td>
+                <td>
+                    <strong style="color: var(--sage-700);">{{ log.task_code }}</strong>
+                    <div style="font-size: 0.8rem; color: var(--text-body);">{{ log.task_title }}</div>
+                </td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div class="avatar" style="width: 26px; height: 26px; font-size: 0.7rem;">{{ log.avatar_initials or 'U' }}</div>
+                        <span style="font-weight: 500;">{{ log.user_name or 'System' }}</span>
+                    </div>
+                </td>
+                <td>
+                    {% if log.action == 'BLOCKED' %}
+                    <span class="badge badge-blocked">BLOCKED</span>
+                    {% elif log.action == 'APPROVED' %}
+                    <span class="badge badge-done">APPROVED</span>
+                    {% elif log.action == 'SUBMIT_REVIEW' %}
+                    <span class="badge badge-under_review">REVIEW SUBMITTED</span>
+                    {% elif log.action == 'STATUS_CHANGE' %}
+                    <span class="badge badge-in_progress">STATUS CHANGE</span>
+                    {% else %}
+                    <span class="badge badge-todo">{{ log.action }}</span>
+                    {% endif %}
+                </td>
+                <td style="color: var(--text-dark);">
+                    {{ log.details }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+        <p style="font-weight: 600;">No activity records match the selected filter.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

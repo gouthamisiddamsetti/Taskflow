@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Active Projects Workspace</h1>
+        <p class="page-subtitle">Track cross-functional initiatives, sprint velocity, and departmental deliverables.</p>
+    </div>
+    {% if current_user.role_name in ('ADMIN', 'TEAM_LEAD') %}
+    <div>
+        <button class="btn btn-primary" onclick="openModal('createTaskModal')">
+            <span>+</span> Assign New Task
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- PROJECT SUMMARY CARDS -->
+<div class="metrics-grid">
+    <div class="metric-card">
+        <span class="metric-title">Active Projects</span>
+        <div class="metric-value">{{ projects|length }}</div>
+        <div class="metric-meta">Across all departments</div>
+    </div>
+    <div class="metric-card">
+        <span class="metric-title">Tracked Tasks</span>
+        <div class="metric-value">
+            {% set total_tasks = namespace(count=0) %}
+            {% for p in projects %}{% set total_tasks.count = total_tasks.count + p.total_tasks %}{% endfor %}
+            {{ total_tasks.count }}
+        </div>
+        <div class="metric-meta">Assigned work units</div>
+    </div>
+    <div class="metric-card">
+        <span class="metric-title">Completed Tasks</span>
+        <div class="metric-value" style="color: var(--status-done);">
+            {% set done_tasks = namespace(count=0) %}
+            {% for p in projects %}{% set done_tasks.count = done_tasks.count + p.done_tasks %}{% endfor %}
+            {{ done_tasks.count }}
+        </div>
+        <div class="metric-meta">Verified deliverables</div>
+    </div>
+</div>
+
+<!-- DETAILED PROJECT ACCORDIONS & PROGRESS -->
+<div style="display: flex; flex-direction: column; gap: 1.5rem;">
+    {% for p in projects %}
+    {% set pct = ((p.done_tasks / p.total_tasks * 100) | round | int) if p.total_tasks > 0 else 0 %}
+    <div class="card-panel" style="margin-bottom: 0;">
+        <div class="panel-header" style="align-items: flex-start; padding-bottom: 1rem;">
+            <div>
+                <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.35rem;">
+                    <span class="badge badge-medium" style="font-weight: 700;">{{ p.code }}</span>
+                    <h2 class="panel-title" style="font-size: 1.3rem;">{{ p.title }}</h2>
+                    <span class="badge badge-done">{{ p.status }}</span>
+                </div>
+                <p style="font-size: 0.875rem; color: var(--text-muted); max-width: 650px;">{{ p.description }}</p>
+                <div style="display: flex; gap: 1.25rem; font-size: 0.8rem; margin-top: 0.5rem; color: var(--text-body);">
+                    <span>Department: <strong>{{ p.department_name }} ({{ p.department_code }})</strong></span>
+                    <span>Lead: <strong>{{ p.lead_name or 'Unassigned' }}</strong></span>
+                    {% if p.target_date %}<span>Target Deadline: <strong>{{ p.target_date }}</strong></span>{% endif %}
+                </div>
+            </div>
+
+            <!-- Progress Bar Block -->
+            <div style="min-width: 220px; text-align: right;">
+                <div style="font-weight: 700; font-size: 1.2rem; color: var(--sage-700);">{{ pct }}% Complete</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem;">{{ p.done_tasks }} of {{ p.total_tasks }} tasks finished</div>
+                <div style="width: 100%; height: 8px; background: var(--bg-subtle); border-radius: 999px; overflow: hidden; border: 1px solid var(--border-light);">
+                    <div style="width: {{ pct }}%; height: 100%; background: linear-gradient(90deg, var(--sage-500), var(--sage-600)); border-radius: 999px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task List under this Project -->
+        {% set p_tasks = tasks_by_project.get(p.id, []) %}
+        {% if p_tasks %}
+        <div style="margin-top: 1rem;">
+            <div style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                Project Tasks ({{ p_tasks|length }})
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">Code</th>
+                        <th>Task Title</th>
+                        <th>Assignee</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Est.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in p_tasks %}
+                    <tr>
+                        <td><strong style="color: var(--sage-700);">{{ t.task_code }}</strong></td>
+                        <td>
+                            <div style="font-weight: 600;">{{ t.title }}</div>
+                            {% if t.blocker_reason %}
+                            <div style="font-size: 0.75rem; color: var(--status-blocked); margin-top: 0.2rem;">
+                                ⚠️ <strong>Blocker:</strong> {{ t.blocker_reason }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>{{ t.assignee_name or 'Unassigned' }}</td>
+                        <td><span class="badge badge-{{ t.priority.lower() }}">{{ t.priority }}</span></td>
+                        <td><span class="badge badge-{{ t.status.lower() }}">{{ t.status.replace('_', ' ') }}</span></td>
+                        <td>{{ t.estimated_hours }}h</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="font-size: 0.85rem; color: var(--text-muted); padding: 0.5rem 0;">No tasks currently assigned to this project.</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

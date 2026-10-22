@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Team Workload & Personnel</h1>
+        <p class="page-subtitle">Monitor capacity, balance task assignments, and resolve impediments across all teams.</p>
+    </div>
+    {% if current_user.role_name in ('ADMIN', 'TEAM_LEAD') %}
+    <div>
+        <button class="btn btn-primary" onclick="openModal('createTaskModal')">
+            <span>+</span> Assign Work
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- METRIC OVERVIEW -->
+<div class="metrics-grid">
+    <div class="metric-card">
+        <span class="metric-title">Active Personnel</span>
+        <div class="metric-value">{{ users|length }}</div>
+        <div class="metric-meta">Across 3 departments</div>
+    </div>
+    <div class="metric-card">
+        <span class="metric-title">Team Members with Active Tasks</span>
+        <div class="metric-value">
+            {% set active_members = namespace(count=0) %}
+            {% for u in users %}{% if u.active_tasks > 0 %}{% set active_members.count = active_members.count + 1 %}{% endif %}{% endfor %}
+            {{ active_members.count }}
+        </div>
+        <div class="metric-meta">Active sprint contributors</div>
+    </div>
+    <div class="metric-card">
+        <span class="metric-title">Active Blockers Reported</span>
+        <div class="metric-value" style="color: var(--status-blocked);">
+            {% set total_blocked = namespace(count=0) %}
+            {% for u in users %}{% set total_blocked.count = total_blocked.count + u.blocked_tasks %}{% endfor %}
+            {{ total_blocked.count }}
+        </div>
+        <div class="metric-meta">Require lead intervention</div>
+    </div>
+</div>
+
+<!-- PERSONNEL CARDS -->
+<div style="display: flex; flex-direction: column; gap: 1.5rem;">
+    {% for u in users %}
+    <div class="card-panel" style="margin-bottom: 0;">
+        <div class="panel-header" style="align-items: center; padding-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="avatar" style="width: 44px; height: 44px; font-size: 1rem;">{{ u.avatar_initials }}</div>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <h2 class="panel-title" style="font-size: 1.15rem; margin-bottom: 0;">{{ u.full_name }}</h2>
+                        <span class="badge badge-todo">{{ u.role_label }}</span>
+                        <span class="badge badge-medium">{{ u.department_code or 'Org' }}</span>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+                        {{ u.title }} &bull; {{ u.email }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workload status chips -->
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <div style="text-align: right; margin-right: 0.75rem;">
+                    <div style="font-size: 0.8rem; font-weight: 700;">{{ u.total_tasks }} Total Units</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">{{ u.active_tasks }} Active</div>
+                </div>
+                {% if u.blocked_tasks > 0 %}
+                <span class="badge badge-blocked">⚠️ {{ u.blocked_tasks }} Blocked</span>
+                {% elif u.active_tasks >= 3 %}
+                <span class="badge badge-high">High Load</span>
+                {% else %}
+                <span class="badge badge-done">Balanced</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Task list for this user -->
+        {% set u_tasks = tasks_by_user.get(u.id, []) %}
+        {% if u_tasks %}
+        <div style="margin-top: 0.75rem;">
+            <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                Current Active Queue ({{ u_tasks|length }})
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0.75rem;">
+                {% for t in u_tasks %}
+                <div style="background: var(--bg-subtle); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 0.75rem 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: var(--sage-700);">{{ t.task_code }}</span>
+                        <div style="display: flex; gap: 0.35rem;">
+                            <span class="badge badge-{{ t.priority.lower() }}" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">{{ t.priority }}</span>
+                            <span class="badge badge-{{ t.status.lower() }}" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">{{ t.status.replace('_', ' ') }}</span>
+                        </div>
+                    </div>
+                    <div style="font-size: 0.875rem; font-weight: 600; color: var(--text-dark);">{{ t.title }}</div>
+                    {% if t.blocker_reason %}
+                    <div style="font-size: 0.75rem; color: var(--status-blocked); margin-top: 0.25rem;">
+                        ⚠️ {{ t.blocker_reason }}
+                    </div>
+                    {% endif %}
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;">
+                        Project: {{ t.project_title }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div style="font-size: 0.85rem; color: var(--text-muted); padding: 0.25rem 0;">No active tasks assigned currently. Ready for new assignments.</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

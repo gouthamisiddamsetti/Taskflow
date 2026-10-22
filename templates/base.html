@@ -55,7 +55,7 @@
             <div>
                 <div class="nav-section-title">Navigation</div>
                 <ul class="nav-links">
-                    <li class="{% if request.path == url_for('dashboard_router') or '/dashboard/' in request.path %}active{% endif %}">
+                    <li class="{% if request.path == url_for('dashboard_router') or '/dashboard' in request.path %}active{% endif %}">
                         <a href="{{ url_for('dashboard_router') }}">
                             <span>📊</span> Dashboard
                         </a>
@@ -66,9 +66,21 @@
             <div>
                 <div class="nav-section-title">Workspaces</div>
                 <ul class="nav-links">
-                    <li><a href="#projects"><span>📁</span> Active Projects</a></li>
-                    <li><a href="#teams"><span>👥</span> Team Workload</a></li>
-                    <li><a href="#audit"><span>📜</span> Activity Logs</a></li>
+                    <li class="{% if request.path == url_for('projects_view') %}active{% endif %}">
+                        <a href="{{ url_for('projects_view') }}">
+                            <span>📁</span> Active Projects
+                        </a>
+                    </li>
+                    <li class="{% if request.path == url_for('teams_view') %}active{% endif %}">
+                        <a href="{{ url_for('teams_view') }}">
+                            <span>👥</span> Team Workload
+                        </a>
+                    </li>
+                    <li class="{% if request.path == url_for('activity_view') %}active{% endif %}">
+                        <a href="{{ url_for('activity_view') }}">
+                            <span>📜</span> Activity Logs
+                        </a>
+                    </li>
                 </ul>
             </div>
 

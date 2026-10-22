@@ -87,6 +87,26 @@ class TaskflowIntegrationTests(unittest.TestCase):
         self.assertIn(b"Administrator Overview", response.data)
         self.assertIn(b"Department Resource Allocation", response.data)
 
+    def test_workspace_routes_render_for_logged_in_user(self):
+        self.login_as('lead.eng@taskflow.local')
+        
+        # Test /projects
+        res_proj = self.client.get('/projects')
+        self.assertEqual(res_proj.status_code, 200)
+        self.assertIn(b"Active Projects Workspace", res_proj.data)
+        self.assertIn(b"ENG-CORE", res_proj.data)
+
+        # Test /teams
+        res_teams = self.client.get('/teams')
+        self.assertEqual(res_teams.status_code, 200)
+        self.assertIn(b"Team Workload & Personnel", res_teams.data)
+        self.assertIn(b"David Chen", res_teams.data)
+
+        # Test /activity
+        res_act = self.client.get('/activity')
+        self.assertEqual(res_act.status_code, 200)
+        self.assertIn(b"Activity Logs & Audit Trail", res_act.data)
+
     # 4. TASK LIFECYCLE API & AUDIT TRAIL
     def test_full_task_lifecycle_workflow(self):
         """Simulate end-to-end organizational workflow:

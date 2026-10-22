@@ -287,6 +287,101 @@ def employee_dashboard():
                            done_count=done_count)
 
 # -------------------------------------------------------------
+# WORKSPACES: PROJECTS, TEAMS, & ACTIVITY LOGS
+# -------------------------------------------------------------
+@app.route('/projects')
+@login_required
+def projects_view():
+    db = get_db()
+    projects = db.execute("""
+        SELECT p.*, d.name as department_name, d.code as department_code,
+               u.full_name as lead_name, u.avatar_initials as lead_initials,
+               COUNT(t.id) as total_tasks,
+               SUM(CASE WHEN t.status = 'DONE' THEN 1 ELSE 0 END) as done_tasks,
+               SUM(CASE WHEN t.status = 'IN_PROGRESS' THEN 1 ELSE 0 END) as in_progress_tasks,
+               SUM(CASE WHEN t.status = 'BLOCKED' THEN 1 ELSE 0 END) as blocked_tasks
+        FROM projects p
+        JOIN departments d ON p.department_id = d.id
+        LEFT JOIN users u ON p.lead_id = u.id
+        LEFT JOIN tasks t ON t.project_id = p.id
+        GROUP BY p.id
+        ORDER BY p.created_at DESC;
+    """).fetchall()
+
+    tasks_by_project = {}
+    for proj in projects:
+        t_list = db.execute("""
+            SELECT t.*, u.full_name as assignee_name, c.name as category_name
+            FROM tasks t
+            LEFT JOIN users u ON t.assignee_id = u.id
+            LEFT JOIN categories c ON t.category_id = c.id
+            WHERE t.project_id = ?
+            ORDER BY t.created_at DESC;
+        """, (proj['id'],)).fetchall()
+        tasks_by_project[proj['id']] = t_list
+
+    return render_template('projects.html', projects=projects, tasks_by_project=tasks_by_project)
+
+@app.route('/teams')
+@login_required
+def teams_view():
+    db = get_db()
+    users = db.execute("""
+        SELECT u.*, r.label as role_label, d.name as department_name, d.code as department_code,
+               COUNT(t.id) as total_tasks,
+               SUM(CASE WHEN t.status = 'IN_PROGRESS' THEN 1 ELSE 0 END) as active_tasks,
+               SUM(CASE WHEN t.status = 'BLOCKED' THEN 1 ELSE 0 END) as blocked_tasks,
+               SUM(CASE WHEN t.status = 'DONE' THEN 1 ELSE 0 END) as done_tasks
+        FROM users u
+        JOIN roles r ON u.role_id = r.id
+        LEFT JOIN departments d ON u.department_id = d.id
+        LEFT JOIN tasks t ON t.assignee_id = u.id
+        WHERE u.is_active = 1
+        GROUP BY u.id
+        ORDER BY u.role_id ASC, active_tasks DESC;
+    """).fetchall()
+
+    tasks_by_user = {}
+    for u in users:
+        u_tasks = db.execute("""
+            SELECT t.*, p.title as project_title, c.name as category_name
+            FROM tasks t
+            JOIN projects p ON t.project_id = p.id
+            LEFT JOIN categories c ON t.category_id = c.id
+            WHERE t.assignee_id = ? AND t.status != 'DONE'
+            ORDER BY t.priority = 'CRITICAL' DESC, t.priority = 'HIGH' DESC;
+        """, (u['id'],)).fetchall()
+        tasks_by_user[u['id']] = u_tasks
+
+    return render_template('teams.html', users=users, tasks_by_user=tasks_by_user)
+
+@app.route('/activity')
+@login_required
+def activity_view():
+    db = get_db()
+    action_filter = request.args.get('action', 'ALL')
+    
+    if action_filter != 'ALL':
+        logs = db.execute("""
+            SELECT l.*, t.task_code, t.title as task_title, u.full_name as user_name, u.avatar_initials
+            FROM task_activity_log l
+            JOIN tasks t ON l.task_id = t.id
+            LEFT JOIN users u ON l.user_id = u.id
+            WHERE l.action = ?
+            ORDER BY l.created_at DESC;
+        """, (action_filter,)).fetchall()
+    else:
+        logs = db.execute("""
+            SELECT l.*, t.task_code, t.title as task_title, u.full_name as user_name, u.avatar_initials
+            FROM task_activity_log l
+            JOIN tasks t ON l.task_id = t.id
+            LEFT JOIN users u ON l.user_id = u.id
+            ORDER BY l.created_at DESC;
+        """).fetchall()
+
+    return render_template('activity.html', logs=logs, current_filter=action_filter)
+
+# -------------------------------------------------------------
 # RESTFUL API ENDPOINTS FOR TASKS & WORKFLOWS
 # -------------------------------------------------------------
 @app.route('/api/tasks', methods=['GET', 'POST'])
