@@ -33,24 +33,15 @@
                     <label class="form-label" for="password">Password</label>
                     <input type="password" id="password" name="password" class="form-control" required placeholder="Choose a secure password">
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div class="form-group">
-                        <label class="form-label" for="role_id">Organizational Role</label>
-                        <select id="role_id" name="role_id" class="form-control" required>
-                            <option value="3" selected>Employee / IC</option>
-                            <option value="2">Team Lead / Manager</option>
-                            <option value="1">Administrator</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="department_id">Department</label>
-                        <select id="department_id" name="department_id" class="form-control" required>
-                            <option value="1" selected>Engineering</option>
-                            <option value="2">Product Design</option>
-                            <option value="3">Growth Marketing</option>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label" for="department_id">Department</label>
+                    <select id="department_id" name="department_id" class="form-control" required>
+                        <option value="1" selected>Engineering</option>
+                        <option value="2">Product Design</option>
+                        <option value="3">Growth Marketing</option>
+                    </select>
                 </div>
+                <p class="field-hint" style="margin-bottom: 1rem;">New registrations are employee accounts. Contact your administrator if you need Team Lead or Admin access.</p>
                 <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; margin-top: 0.5rem;">
                     Complete Registration
                 </button>

@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 taskflow.db
+instance/
 .env
 .venv/
 venv/

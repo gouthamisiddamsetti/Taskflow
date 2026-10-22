@@ -15,23 +15,6 @@
         </a>
 
         {% if current_user %}
-        <!-- One-Click Demo Role Switcher for instant evaluation -->
-        <div class="demo-role-switcher" title="Switch persona to evaluate different role dashboards">
-            <span class="label">Switch Role:</span>
-            <a href="{{ url_for('switch_demo_role', role_name='ADMIN') }}" 
-               class="role-pill {% if current_user.role_name == 'ADMIN' %}active{% endif %}">
-                Admin
-            </a>
-            <a href="{{ url_for('switch_demo_role', role_name='TEAM_LEAD') }}" 
-               class="role-pill {% if current_user.role_name == 'TEAM_LEAD' %}active{% endif %}">
-                Team Lead
-            </a>
-            <a href="{{ url_for('switch_demo_role', role_name='EMPLOYEE') }}" 
-               class="role-pill {% if current_user.role_name == 'EMPLOYEE' %}active{% endif %}">
-                Employee
-            </a>
-        </div>
-
         <div class="user-profile-badge">
             <div style="text-align: right;">
                 <div style="font-weight: 600; font-size: 0.85rem;">{{ current_user.full_name }}</div>

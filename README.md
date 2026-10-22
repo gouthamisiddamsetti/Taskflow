@@ -125,21 +125,19 @@ Open your browser at `http://127.0.0.1:5000`.
 - **Team Lead:** `lead.eng@taskflow.local` (David Chen - Staff Lead)
 - **Employee (IC):** `alex.dev@taskflow.local` (Alex Rivera - Full Stack Engineer)
 
-*(Tip: You can also use the interactive **"Switch Role"** pill bar at the top of any page to instantaneously toggle between roles during presentations!)*
-
 ### Walkthrough Steps:
 1. **Landing Page:** Navigate to `/` to view the organizational workflow showcase.
-2. **Login Screen:** Click "Sign In" to see the responsive form with Google Workspace SSO button.
+2. **Login Screen:** Sign in with the email and password for the employee, Team Lead, or Admin account. Each account opens only its assigned role dashboard.
 3. **Team Lead View:**
    - Log in as `lead.eng@taskflow.local`.
    - Inspect the **Workload Balancing Heatmap**.
    - Notice the **Blocked Task Alert** (`TSK-105`) and the **Sign-Off Queue**.
    - Click `+ Assign Work` to delegate a new task to Alex Rivera.
 4. **Employee View:**
-   - Click `Employee` on the top switcher.
+   - Sign out, then sign in with `alex.dev@taskflow.local` and the demo password to use the employee account.
    - See the personal focus queue with active hours and blocker warning.
    - Click `Start Work` on a `TODO` item to advance it to `IN_PROGRESS`.
    - Click `Flag Blocker` to report an impediment, or `Submit for Review`.
 5. **Admin View:**
-   - Click `Admin` on the top switcher.
+   - Sign out, then sign in with `admin@taskflow.local` and the demo password to use the administrator account.
    - Observe company-wide stats, department health, and the updated **System Audit Log** reflecting the actions just completed!

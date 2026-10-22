@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="employee-dashboard">
 <div class="page-header">
     <div>
         <h1 class="page-title">My Focus Queue</h1>
@@ -63,6 +64,11 @@
                 </div>
                 <div class="task-title">{{ task.title }}</div>
                 <div class="task-desc">{{ task.description }}</div>
+                {% if task.git_url %}
+                <a class="assigned-git-link" href="{{ task.git_url }}" target="_blank" rel="noopener noreferrer">
+                    Open assignment Git link <span aria-hidden="true">&#8599;</span>
+                </a>
+                {% endif %}
 
                 {% if task.blocker_reason %}
                 <div class="task-blocker-alert">
@@ -88,7 +94,7 @@
                         <button class="btn btn-secondary btn-sm" onclick="triggerBlockerModal({{ task.id }}, '{{ task.task_code }}')">
                             Flag Blocker
                         </button>
-                        <button class="btn btn-primary btn-sm" onclick="submitReviewActionDirect({{ task.id }})">
+                        <button class="btn btn-primary btn-sm" onclick="openSubmissionModal({{ task.id }}, '{{ task.task_code }}')">
                             Submit for Review
                         </button>
                     </div>
@@ -117,28 +123,102 @@
     </div>
     {% endif %}
 </div>
+
+<div id="submissionModal" class="modal-overlay">
+    <div class="modal-box submission-modal">
+        <div class="modal-header submission-header">
+            <div>
+                <div class="submission-eyebrow">DELIVERABLE HANDOFF</div>
+                <div class="modal-title">Submit work for review</div>
+                <div class="submission-task">Task <span id="submissionTaskCode"></span> &middot; Your Team Lead will review your submission</div>
+            </div>
+            <button type="button" class="modal-close" aria-label="Close submission form" onclick="closeModal('submissionModal')">&times;</button>
+        </div>
+        <form id="submissionForm" onsubmit="submitEmployeeSubmission(event)">
+            <input type="hidden" id="submissionTaskId" name="task_id">
+            <div class="modal-body submission-body">
+                <div class="submission-section-title">Share what you completed</div>
+                <div class="form-group">
+                    <label class="form-label" for="submissionGitUrl">Git repository or pull request link <span class="required-mark">*</span></label>
+                    <input type="url" id="submissionGitUrl" name="git_url" class="form-control" required placeholder="https://github.com/team/project/pull/123">
+                    <div class="field-hint">Use a link your Team Lead can access.</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="submissionDescription">Work summary <span class="required-mark">*</span></label>
+                    <textarea id="submissionDescription" name="description" class="form-control" rows="5" required maxlength="5000" placeholder="Describe what you implemented, how you verified it, and anything your reviewer should know..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="submissionAttachments">Attach supporting files <span class="optional-label">Optional &middot; up to 5 files</span></label>
+                    <label class="submission-dropzone" for="submissionAttachments">
+                        <span class="submission-upload-icon" aria-hidden="true">&#8593;</span>
+                        <span><strong>Choose files to attach</strong><small>Documents, screenshots, test evidence, or other deliverables (16 MB total max)</small></span>
+                    </label>
+                    <input type="file" id="submissionAttachments" name="attachments" class="submission-file-input" multiple>
+                    <div id="submissionFileList" class="submission-file-list" aria-live="polite"></div>
+                </div>
+                <div id="submissionError" class="submission-error" role="alert" hidden></div>
+            </div>
+            <div class="submission-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('submissionModal')">Cancel</button>
+                <button id="submissionSubmitButton" type="submit" class="btn btn-primary"><span aria-hidden="true">&#8599;</span> Submit to Team Lead</button>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-async function submitReviewActionDirect(taskId) {
-    const notes = prompt("Enter submission notes or Pull Request link for your Team Lead:");
-    if (notes === null) return; // User cancelled
+function openSubmissionModal(taskId, taskCode) {
+    document.getElementById('submissionError').hidden = true;
+    document.getElementById('submissionError').textContent = '';
+    document.getElementById('submissionForm').reset();
+    document.getElementById('submissionTaskId').value = taskId;
+    document.getElementById('submissionTaskCode').textContent = taskCode;
+    document.getElementById('submissionFileList').textContent = '';
+    openModal('submissionModal');
+}
+
+document.getElementById('submissionAttachments').addEventListener('change', function () {
+    const list = document.getElementById('submissionFileList');
+    list.textContent = '';
+    Array.from(this.files).forEach(file => {
+        const item = document.createElement('div');
+        item.className = 'submission-file-item';
+        item.textContent = `${file.name} · ${(file.size / 1024).toFixed(0)} KB`;
+        list.appendChild(item);
+    });
+});
+
+async function submitEmployeeSubmission(event) {
+    event.preventDefault();
+    const form = document.getElementById('submissionForm');
+    const submitButton = document.getElementById('submissionSubmitButton');
+    const errorBox = document.getElementById('submissionError');
+    const taskId = document.getElementById('submissionTaskId').value;
+    errorBox.hidden = true;
+    submitButton.disabled = true;
+    submitButton.textContent = 'Submitting...';
 
     try {
-        const response = await fetch(`/api/tasks/${taskId}/review`, {
+        const response = await fetch(`/api/tasks/${taskId}/submission`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'SUBMIT', notes: notes })
+            body: new FormData(form)
         });
         if (response.ok) {
             window.location.reload();
         } else {
             const data = await response.json();
-            alert(data.error || 'Failed to submit review');
+            errorBox.textContent = data.error || 'Failed to submit work for review.';
+            errorBox.hidden = false;
         }
-    } catch (err) {
-        console.error('Error submitting review:', err);
+    } catch (error) {
+        errorBox.textContent = 'Unable to submit right now. Check your connection and try again.';
+        errorBox.hidden = false;
+    } finally {
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<span aria-hidden="true">&#8599;</span> Submit to Team Lead';
     }
 }
 </script>

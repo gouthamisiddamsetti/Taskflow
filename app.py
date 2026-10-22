@@ -5,21 +5,77 @@ Teams 2 & 4: Backend, Authentication, and Integration
 """
 
 import os
+import json
 import sqlite3
+import uuid
 from datetime import datetime, date
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, g
+from urllib.parse import urlsplit
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, g, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from auth import get_db, get_current_user, login_required, role_required
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "taskflow-sage-cream-secure-key-2026")
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "taskflow.db")
+UPLOAD_FOLDER = os.path.join(app.instance_path, "task_submissions")
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+
+
+def ensure_task_submissions_table(db):
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS task_submissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER NOT NULL UNIQUE,
+            submitted_by INTEGER NOT NULL,
+            git_url TEXT NOT NULL,
+            description TEXT NOT NULL,
+            attachments_json TEXT NOT NULL DEFAULT '[]',
+            submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE,
+            FOREIGN KEY (submitted_by) REFERENCES users (id) ON DELETE CASCADE
+        );
+    """)
+
+
+def ensure_task_git_link_column(db):
+    columns = {
+        row['name'] for row in db.execute("PRAGMA table_info(tasks);").fetchall()
+    }
+    if 'git_url' not in columns:
+        db.execute("ALTER TABLE tasks ADD COLUMN git_url TEXT;")
+
+
+def task_assignment_options(db, projects=None):
+    if projects is None:
+        projects = db.execute("SELECT id, title, code FROM projects ORDER BY title;").fetchall()
+    assignees = db.execute("""
+        SELECT u.id, u.full_name, u.title
+        FROM users u
+        JOIN roles r ON u.role_id = r.id
+        WHERE u.is_active = 1 AND r.name = 'EMPLOYEE'
+        ORDER BY u.full_name;
+    """).fetchall()
+    categories = db.execute("SELECT id, name FROM categories ORDER BY name;").fetchall()
+    return {
+        'projects': projects,
+        'assignees': assignees,
+        'categories': categories,
+    }
+
 
 @app.teardown_appcontext
 def close_db(error):
     db = g.pop('db', None)
     if db is not None:
         db.close()
+
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    return jsonify({'error': 'Upload is too large. The total request limit is 16 MB.'}), 413
+
 
 @app.context_processor
 def inject_user():
@@ -37,6 +93,9 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if get_current_user():
+        return redirect(url_for('dashboard_router'))
+
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
@@ -59,7 +118,6 @@ def signup():
         full_name = request.form.get('full_name', '').strip()
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
-        role_id = int(request.form.get('role_id', 3)) # Default: Employee
         department_id = int(request.form.get('department_id', 1))
         
         if not full_name or not email or not password:
@@ -71,11 +129,17 @@ def signup():
         
         db = get_db()
         try:
+            employee_role = db.execute(
+                "SELECT id FROM roles WHERE name = 'EMPLOYEE';"
+            ).fetchone()
+            if not employee_role:
+                flash("Employee role is not configured. Please contact your administrator.", "danger")
+                return render_template('signup.html')
             cursor = db.cursor()
             cursor.execute("""
                 INSERT INTO users (full_name, email, password_hash, role_id, department_id, avatar_initials, title)
                 VALUES (?, ?, ?, ?, ?, ?, 'Team Member');
-            """, (full_name, email, pw_hash, role_id, department_id, initials))
+            """, (full_name, email, pw_hash, employee_role['id'], department_id, initials))
             db.commit()
             session['user_id'] = cursor.lastrowid
             flash("Account created successfully! Welcome to Taskflow.", "success")
@@ -90,23 +154,6 @@ def logout():
     session.clear()
     flash("You have been signed out.", "info")
     return redirect(url_for('login'))
-
-@app.route('/auth/switch-demo-role/<role_name>')
-def switch_demo_role(role_name):
-    """Convenience endpoint for review and demoing all 3 role perspectives."""
-    role_name = role_name.upper()
-    db = get_db()
-    user = db.execute("""
-        SELECT u.id FROM users u
-        JOIN roles r ON u.role_id = r.id
-        WHERE r.name = ? AND u.is_active = 1
-        LIMIT 1;
-    """, (role_name,)).fetchone()
-    
-    if user:
-        session['user_id'] = user['id']
-        flash(f"Switched view to {role_name} persona.", "info")
-    return redirect(url_for('dashboard_router'))
 
 # -------------------------------------------------------------
 # ROLE DASHBOARD ROUTER & PAGES
@@ -177,6 +224,8 @@ def admin_dashboard():
 @role_required('ADMIN', 'TEAM_LEAD')
 def lead_dashboard():
     db = get_db()
+    ensure_task_git_link_column(db)
+    ensure_task_submissions_table(db)
     user = get_current_user()
     
     # Team members and workload
@@ -193,14 +242,21 @@ def lead_dashboard():
 
     # Tasks needing Lead Review
     pending_reviews = db.execute("""
-        SELECT t.*, u.full_name as assignee_name, p.title as project_title, c.name as category_name
+        SELECT t.*, u.full_name as assignee_name, p.title as project_title, c.name as category_name,
+               s.git_url as submission_git_url, s.description as submission_description,
+               s.attachments_json, s.submitted_at
         FROM tasks t
         LEFT JOIN users u ON t.assignee_id = u.id
         JOIN projects p ON t.project_id = p.id
         LEFT JOIN categories c ON t.category_id = c.id
+        LEFT JOIN task_submissions s ON s.task_id = t.id
         WHERE t.status = 'UNDER_REVIEW'
         ORDER BY t.updated_at DESC;
     """).fetchall()
+    pending_reviews = [
+        {**dict(review), "attachments": json.loads(review["attachments_json"] or "[]")}
+        for review in pending_reviews
+    ]
 
     # Active blockers needing intervention
     blockers = db.execute("""
@@ -229,23 +285,138 @@ def lead_dashboard():
             END;
     """).fetchall()
 
-    projects = db.execute("SELECT id, title, code FROM projects;").fetchall()
-    assignees = db.execute("SELECT id, full_name, title FROM users WHERE is_active = 1;").fetchall()
-    categories = db.execute("SELECT id, name FROM categories;").fetchall()
-
+    assignment_options = task_assignment_options(db)
     return render_template('lead_dashboard.html',
                            team_members=team_members,
                            pending_reviews=pending_reviews,
                            blockers=blockers,
                            tasks=tasks,
-                           projects=projects,
-                           assignees=assignees,
-                           categories=categories)
+                           **assignment_options)
+
+
+@app.route('/api/tasks/<int:task_id>/submission', methods=['POST'])
+@login_required
+def submit_task_work(task_id):
+    db = get_db()
+    ensure_task_submissions_table(db)
+    user = get_current_user()
+    task = db.execute("SELECT * FROM tasks WHERE id = ?;", (task_id,)).fetchone()
+    if not task:
+        return jsonify({'error': 'Task not found'}), 404
+    if user['role_name'] != 'EMPLOYEE' or task['assignee_id'] != user['id']:
+        return jsonify({'error': 'Only the assigned employee can submit this work'}), 403
+    if task['status'] != 'IN_PROGRESS':
+        return jsonify({'error': 'Task must be in progress before it can be submitted'}), 400
+
+    git_url = request.form.get('git_url', '').strip()
+    description = request.form.get('description', '').strip()
+    try:
+        parsed_url = urlsplit(git_url)
+    except ValueError:
+        return jsonify({'error': 'Enter a valid HTTP or HTTPS Git link'}), 400
+    if parsed_url.scheme not in ('http', 'https') or not parsed_url.netloc:
+        return jsonify({'error': 'Enter a valid HTTP or HTTPS Git link'}), 400
+    if not description:
+        return jsonify({'error': 'Work description is required'}), 400
+
+    uploads = [item for item in request.files.getlist('attachments') if item and item.filename]
+    if len(uploads) > 5:
+        return jsonify({'error': 'Attach no more than 5 files'}), 400
+
+    previous = db.execute(
+        "SELECT attachments_json FROM task_submissions WHERE task_id = ?;",
+        (task_id,)
+    ).fetchone()
+    saved_files = []
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    submission_committed = False
+    try:
+        for upload in uploads:
+            original_name = secure_filename(upload.filename) or 'attachment'
+            stored_name = f"{uuid.uuid4().hex}_{original_name}"
+            saved_files.append({
+                'stored_name': stored_name,
+                'original_name': original_name,
+            })
+            upload.save(os.path.join(app.config["UPLOAD_FOLDER"], stored_name))
+
+        db.execute("""
+            INSERT INTO task_submissions
+                (task_id, submitted_by, git_url, description, attachments_json, submitted_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(task_id) DO UPDATE SET
+                submitted_by = excluded.submitted_by,
+                git_url = excluded.git_url,
+                description = excluded.description,
+                attachments_json = excluded.attachments_json,
+                submitted_at = CURRENT_TIMESTAMP;
+        """, (task_id, user['id'], git_url, description, json.dumps(saved_files)))
+        db.execute("UPDATE tasks SET status = 'UNDER_REVIEW' WHERE id = ?;", (task_id,))
+        db.execute("""
+            INSERT INTO task_activity_log (task_id, user_id, action, details)
+            VALUES (?, ?, 'SUBMIT_REVIEW', ?);
+        """, (task_id, user['id'], f"Submitted work for review: {git_url}"))
+        db.commit()
+        submission_committed = True
+    finally:
+        if not submission_committed:
+            db.rollback()
+            for item in saved_files:
+                file_path = os.path.join(app.config["UPLOAD_FOLDER"], item['stored_name'])
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+
+    if previous:
+        for old_file in json.loads(previous['attachments_json'] or '[]'):
+            old_name = os.path.basename(old_file.get('stored_name', ''))
+            if old_name:
+                old_path = os.path.join(app.config["UPLOAD_FOLDER"], old_name)
+                if os.path.isfile(old_path):
+                    os.remove(old_path)
+
+    return jsonify({'success': True, 'message': 'Work submitted for Team Lead review'}), 201
+
+
+@app.route('/api/tasks/<int:task_id>/submission/files/<path:filename>')
+@login_required
+def download_submission_file(task_id, filename):
+    db = get_db()
+    ensure_task_submissions_table(db)
+    user = get_current_user()
+    task = db.execute("SELECT assignee_id, reviewer_id FROM tasks WHERE id = ?;", (task_id,)).fetchone()
+    if not task:
+        return jsonify({'error': 'Task not found'}), 404
+    is_assignee = task['assignee_id'] == user['id']
+    is_reviewer = user['role_name'] == 'TEAM_LEAD' and task['reviewer_id'] == user['id']
+    is_admin = user['role_name'] == 'ADMIN'
+    if not (is_assignee or is_reviewer or is_admin):
+        return jsonify({'error': 'You are not authorized to access these files'}), 403
+
+    submission = db.execute(
+        "SELECT attachments_json FROM task_submissions WHERE task_id = ?;",
+        (task_id,)
+    ).fetchone()
+    if not submission:
+        return jsonify({'error': 'Submission not found'}), 404
+    attachment = next(
+        (item for item in json.loads(submission['attachments_json'] or '[]')
+         if item.get('stored_name') == filename),
+        None
+    )
+    if not attachment:
+        return jsonify({'error': 'File not found'}), 404
+    return send_from_directory(
+        app.config["UPLOAD_FOLDER"],
+        attachment['stored_name'],
+        as_attachment=True,
+        download_name=attachment['original_name']
+    )
 
 @app.route('/dashboard/employee')
-@login_required
+@role_required('EMPLOYEE')
 def employee_dashboard():
     db = get_db()
+    ensure_task_git_link_column(db)
     user = get_current_user()
     
     # "Assigned to Me" tasks
@@ -320,7 +491,12 @@ def projects_view():
         """, (proj['id'],)).fetchall()
         tasks_by_project[proj['id']] = t_list
 
-    return render_template('projects.html', projects=projects, tasks_by_project=tasks_by_project)
+    context = {
+        **task_assignment_options(db, projects=projects),
+        'projects': projects,
+        'tasks_by_project': tasks_by_project,
+    }
+    return render_template('projects.html', **context)
 
 @app.route('/teams')
 @login_required
@@ -353,7 +529,13 @@ def teams_view():
         """, (u['id'],)).fetchall()
         tasks_by_user[u['id']] = u_tasks
 
-    return render_template('teams.html', users=users, tasks_by_user=tasks_by_user)
+    assignment_options = task_assignment_options(db)
+    return render_template(
+        'teams.html',
+        users=users,
+        tasks_by_user=tasks_by_user,
+        **assignment_options
+    )
 
 @app.route('/activity')
 @login_required
@@ -379,7 +561,13 @@ def activity_view():
             ORDER BY l.created_at DESC;
         """).fetchall()
 
-    return render_template('activity.html', logs=logs, current_filter=action_filter)
+    assignment_options = task_assignment_options(db)
+    return render_template(
+        'activity.html',
+        logs=logs,
+        current_filter=action_filter,
+        **assignment_options
+    )
 
 # -------------------------------------------------------------
 # RESTFUL API ENDPOINTS FOR TASKS & WORKFLOWS
@@ -388,13 +576,17 @@ def activity_view():
 @login_required
 def api_tasks():
     db = get_db()
+    ensure_task_git_link_column(db)
     user = get_current_user()
     
     if request.method == 'POST':
+        if user['role_name'] not in ('ADMIN', 'TEAM_LEAD'):
+            return jsonify({'error': 'Only Team Leads and Admins can assign tasks'}), 403
         data = request.get_json() or request.form
         title = data.get('title')
         project_id = data.get('project_id')
         assignee_id = data.get('assignee_id') or None
+        git_url = (data.get('git_url') or '').strip()
         priority = data.get('priority', 'MEDIUM')
         category_id = data.get('category_id') or None
         description = data.get('description', '')
@@ -403,6 +595,22 @@ def api_tasks():
 
         if not title or not project_id:
             return jsonify({'error': 'Title and Project are required'}), 400
+        if git_url:
+            try:
+                parsed_url = urlsplit(git_url)
+            except ValueError:
+                return jsonify({'error': 'Enter a valid HTTP or HTTPS Git link'}), 400
+            if parsed_url.scheme not in ('http', 'https') or not parsed_url.netloc:
+                return jsonify({'error': 'Enter a valid HTTP or HTTPS Git link'}), 400
+        if assignee_id:
+            assignee = db.execute("""
+                SELECT u.id
+                FROM users u
+                JOIN roles r ON u.role_id = r.id
+                WHERE u.id = ? AND u.is_active = 1 AND r.name = 'EMPLOYEE';
+            """, (assignee_id,)).fetchone()
+            if not assignee:
+                return jsonify({'error': 'Tasks can only be assigned to active employees'}), 400
 
         # Generate unique task code
         task_count = db.execute("SELECT COUNT(*) FROM tasks;").fetchone()[0] + 101
@@ -411,11 +619,11 @@ def api_tasks():
         cursor = db.cursor()
         cursor.execute("""
             INSERT INTO tasks (
-                task_code, title, description, project_id, category_id,
+                task_code, title, description, git_url, project_id, category_id,
                 author_id, assignee_id, reviewer_id, priority, status,
                 estimated_hours, due_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'TODO', ?, ?);
-        """, (task_code, title, description, project_id, category_id,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'TODO', ?, ?);
+        """, (task_code, title, description, git_url, project_id, category_id,
               user['id'], assignee_id, user['id'], priority, est_hours, due_date))
         
         task_id = cursor.lastrowid

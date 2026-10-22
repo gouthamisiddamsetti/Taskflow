@@ -113,4 +113,7 @@
     </div>
     {% endfor %}
 </div>
+{% if current_user.role_name in ('ADMIN', 'TEAM_LEAD') %}
+{% include 'partials/task_assignment_modal.html' %}
+{% endif %}
 {% endblock %}

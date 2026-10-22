@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     task_code TEXT NOT NULL UNIQUE,
     title TEXT NOT NULL,
     description TEXT,
+    git_url TEXT,
     project_id INTEGER NOT NULL,
     category_id INTEGER,
     author_id INTEGER NOT NULL,
@@ -108,6 +109,19 @@ CREATE TABLE IF NOT EXISTS comments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+-- 9. EMPLOYEE WORK SUBMISSIONS
+CREATE TABLE IF NOT EXISTS task_submissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL UNIQUE,
+    submitted_by INTEGER NOT NULL,
+    git_url TEXT NOT NULL,
+    description TEXT NOT NULL,
+    attachments_json TEXT NOT NULL DEFAULT '[]',
+    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE,
+    FOREIGN KEY (submitted_by) REFERENCES users (id) ON DELETE CASCADE
 );
 
 -- INDEXES FOR PERFORMANCE AND ROLE-BASED QUERY ACCELERATION

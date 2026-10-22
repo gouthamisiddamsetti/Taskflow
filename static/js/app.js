@@ -116,8 +116,14 @@ async function submitReviewAction(action) {
 async function submitCreateTask(event) {
     event.preventDefault();
     const form = document.getElementById('createTaskForm');
+    const submitButton = document.getElementById('createTaskSubmitButton');
+    const errorBox = document.getElementById('createTaskError');
     const formData = new FormData(form);
     const payload = Object.fromEntries(formData.entries());
+    errorBox.hidden = true;
+    errorBox.textContent = '';
+    submitButton.disabled = true;
+    submitButton.textContent = 'Assigning...';
 
     try {
         const response = await fetch('/api/tasks', {
@@ -130,9 +136,14 @@ async function submitCreateTask(event) {
             window.location.reload();
         } else {
             const data = await response.json();
-            alert(data.error || 'Failed to create task');
+            errorBox.textContent = data.error || 'Failed to assign task.';
+            errorBox.hidden = false;
         }
-    } catch (err) {
-        console.error('Error creating task:', err);
+    } catch (error) {
+        errorBox.textContent = 'Unable to assign task right now. Check your connection and try again.';
+        errorBox.hidden = false;
+    } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Assign Work';
     }
 }

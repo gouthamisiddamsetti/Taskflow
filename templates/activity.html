@@ -6,10 +6,15 @@
         <h1 class="page-title">Activity Logs & Audit Trail</h1>
         <p class="page-subtitle">Immutable chronological history of all organizational task events, assignments, and approvals.</p>
     </div>
-    <div>
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
         <span class="badge badge-medium" style="font-size: 0.85rem; padding: 0.4rem 0.9rem;">
             Audit Engine: Active
         </span>
+        {% if current_user.role_name in ('ADMIN', 'TEAM_LEAD') %}
+        <button class="btn btn-primary" onclick="openModal('createTaskModal')">
+            <span>+</span> Assign Work
+        </button>
+        {% endif %}
     </div>
 </div>
 
@@ -97,4 +102,7 @@
     </div>
     {% endif %}
 </div>
+{% if current_user.role_name in ('ADMIN', 'TEAM_LEAD') %}
+{% include 'partials/task_assignment_modal.html' %}
+{% endif %}
 {% endblock %}

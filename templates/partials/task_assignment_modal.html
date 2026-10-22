@@ -1,0 +1,77 @@
+<div id="createTaskModal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title">Delegate New Work Unit</div>
+            <button type="button" class="modal-close" aria-label="Close task assignment form" onclick="closeModal('createTaskModal')">&times;</button>
+        </div>
+        <form id="createTaskForm" onsubmit="submitCreateTask(event)">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="taskTitle">Task Title</label>
+                    <input type="text" id="taskTitle" name="title" class="form-control" required placeholder="e.g. Implement OAuth Single Sign-on">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="taskDesc">Description & Acceptance Criteria</label>
+                    <textarea id="taskDesc" name="description" class="form-control" rows="3" placeholder="Specify deliverables, edge cases, and documentation needed..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="taskGitUrl">Git repository or starter link <span class="optional-label">Optional</span></label>
+                    <input type="url" id="taskGitUrl" name="git_url" class="form-control" placeholder="https://github.com/team/project">
+                    <div class="field-hint">The assigned employee will see this link with the task.</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="projectSelect">Project</label>
+                        <select id="projectSelect" name="project_id" class="form-control" required>
+                            {% for p in projects %}
+                            <option value="{{ p.id }}">{{ p.title }} ({{ p.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="assigneeSelect">Assignee (Delegatee)</label>
+                        <select id="assigneeSelect" name="assignee_id" class="form-control" required>
+                            {% for a in assignees %}
+                            <option value="{{ a.id }}">{{ a.full_name }} ({{ a.title }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="prioritySelect">Priority</label>
+                        <select id="prioritySelect" name="priority" class="form-control">
+                            <option value="LOW">Low</option>
+                            <option value="MEDIUM" selected>Medium</option>
+                            <option value="HIGH">High</option>
+                            <option value="CRITICAL">Critical</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="categorySelect">Category</label>
+                        <select id="categorySelect" name="category_id" class="form-control">
+                            {% for c in categories %}
+                            <option value="{{ c.id }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="estHours">Estimated Hours</label>
+                        <input type="number" id="estHours" name="estimated_hours" class="form-control" step="0.5" min="0" placeholder="8.0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="dueDate">Target Due Date</label>
+                        <input type="date" id="dueDate" name="due_date" class="form-control">
+                    </div>
+                </div>
+                <div id="createTaskError" class="submission-error" role="alert" hidden></div>
+            </div>
+            <div style="padding: 1rem 1.5rem; background: var(--bg-subtle); border-top: 1px solid var(--border-light); display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('createTaskModal')">Cancel</button>
+                <button type="submit" id="createTaskSubmitButton" class="btn btn-primary">Assign Work</button>
+            </div>
+        </form>
+    </div>
+</div>

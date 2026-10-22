@@ -15,7 +15,7 @@
         </p>
         <div style="display: flex; justify-content: center; gap: 1rem;">
             <a href="{{ url_for('login') }}" class="btn btn-primary" style="padding: 0.85rem 2rem; font-size: 1rem;">
-                Launch Live Demo &rarr;
+                Sign In to Your Account &rarr;
             </a>
             <a href="{{ url_for('signup') }}" class="btn btn-secondary" style="padding: 0.85rem 1.75rem; font-size: 1rem;">
                 Create Free Account
@@ -41,8 +41,8 @@
                     Global organizational health, department resource distribution, user provisioning, role assignments, and system audit trail inspection.
                 </p>
                 <div style="margin-top: auto;">
-                    <a href="{{ url_for('switch_demo_role', role_name='ADMIN') }}" class="btn btn-secondary btn-sm" style="width: 100%;">
-                        Preview Admin Dashboard &rarr;
+                    <a href="{{ url_for('login') }}" class="btn btn-secondary btn-sm" style="width: 100%;">
+                        Sign in as Admin &rarr;
                     </a>
                 </div>
             </div>
@@ -60,8 +60,8 @@
                     Sprint capacity planning, balanced task delegation, review and sign-off queue, and proactive blocker resolution to maintain team velocity.
                 </p>
                 <div style="margin-top: auto;">
-                    <a href="{{ url_for('switch_demo_role', role_name='TEAM_LEAD') }}" class="btn btn-primary btn-sm" style="width: 100%;">
-                        Preview Lead Dashboard &rarr;
+                    <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm" style="width: 100%;">
+                        Sign in as Team Lead &rarr;
                     </a>
                 </div>
             </div>
@@ -76,8 +76,8 @@
                     High-focus "My Work" queue, one-click status transitions, instant blocker escalation with rationale, and seamless review submission.
                 </p>
                 <div style="margin-top: auto;">
-                    <a href="{{ url_for('switch_demo_role', role_name='EMPLOYEE') }}" class="btn btn-secondary btn-sm" style="width: 100%;">
-                        Preview Employee Dashboard &rarr;
+                    <a href="{{ url_for('login') }}" class="btn btn-secondary btn-sm" style="width: 100%;">
+                        Sign in as Employee &rarr;
                     </a>
                 </div>
             </div>
